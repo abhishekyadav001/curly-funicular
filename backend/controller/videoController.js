@@ -2,26 +2,31 @@ const Video = require("../models/Video");
 const path = require("path");
 
 const uploadVideo = async (req, res) => {
-  const { title, description, tags } = req.body;
-  const file = req.file;
+  console.log("Upload request received:", req.file, req.body);
 
-  if (!file) return res.status(400).json({ message: "No file uploaded" });
+  if (!req.file) {
+    return res.status(400).json({ message: "No file uploaded" });
+  }
+
+  const { title, description, tags } = req.body;
+  const filePath = path.join("uploads", req.file.filename); // Store relative path
 
   const video = new Video({
     userId: req.user.id,
     title,
     description,
     tags: tags ? tags.split(",") : [],
-    fileSize: file.size,
+    fileSize: req.file.size,
     duration: Math.floor(Math.random() * 300), // Random duration for demo
-    filePath: file.path,
+    filePath,
   });
 
   try {
     await video.save();
-    res.status(201).json(video);
+    res.status(201).json({ message: "Video uploaded successfully", video });
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    console.error("Upload Error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -37,10 +42,13 @@ const getVideos = async (req, res) => {
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .sort({ uploadedAt: -1 });
+
     const total = await Video.countDocuments(query);
+
     res.json({ videos, total, page: parseInt(page), pages: Math.ceil(total / limit) });
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    console.error("Fetch Videos Error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
